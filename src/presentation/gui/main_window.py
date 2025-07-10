@@ -7,6 +7,7 @@ from typing import Optional
 
 from src.infrastructure.autocad.connection import AutoCADConnection
 from src.application.services.dimension_service import DimensionService
+from src.application.services.compliance_service import ComplianceService, RuleCategory
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class MainWindow:
         self.root = ctk.CTk()
         self.connection: Optional[AutoCADConnection] = None
         self.dimension_service: Optional[DimensionService] = None
+        self.compliance_service: Optional[ComplianceService] = None
         self.setup_ui()
         
     def setup_ui(self):
@@ -240,10 +242,123 @@ class MainWindow:
         )
         self.results_text.grid(row=1, column=0, padx=15, pady=(0, 15), sticky="nsew")
         
+        # Compliance Checking Panel
+        compliance_frame = ctk.CTkFrame(self.root, corner_radius=15)
+        compliance_frame.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
+        compliance_frame.grid_columnconfigure(0, weight=1)
+        
+        # Compliance title
+        compliance_title = ctk.CTkLabel(
+            compliance_frame,
+            text="🏛️ Building Code Compliance",
+            font=ctk.CTkFont(family=PRIMARY_FONT, size=16, weight="normal")
+        )
+        compliance_title.grid(row=0, column=0, padx=20, pady=(15, 10), sticky="w")
+        
+        # Compliance settings
+        compliance_settings_frame = ctk.CTkFrame(compliance_frame, corner_radius=10)
+        compliance_settings_frame.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
+        compliance_settings_frame.grid_columnconfigure((0, 1), weight=1)
+        
+        # Rule categories
+        categories_label = ctk.CTkLabel(
+            compliance_settings_frame,
+            text="Check Categories:",
+            font=ctk.CTkFont(family=PRIMARY_FONT, size=13, weight="normal")
+        )
+        categories_label.grid(row=0, column=0, padx=15, pady=15, sticky="w")
+        
+        # Category checkboxes
+        self.fire_safety_var = ctk.BooleanVar(value=True)
+        self.fire_safety_cb = ctk.CTkCheckBox(
+            compliance_settings_frame,
+            text="Fire Safety",
+            variable=self.fire_safety_var,
+            font=ctk.CTkFont(family=PRIMARY_FONT, size=12, weight="normal")
+        )
+        self.fire_safety_cb.grid(row=0, column=1, padx=15, pady=15, sticky="w")
+        
+        self.accessibility_var = ctk.BooleanVar(value=True)
+        self.accessibility_cb = ctk.CTkCheckBox(
+            compliance_settings_frame,
+            text="Accessibility (ADA)",
+            variable=self.accessibility_var,
+            font=ctk.CTkFont(family=PRIMARY_FONT, size=12, weight="normal")
+        )
+        self.accessibility_cb.grid(row=1, column=1, padx=15, pady=(0, 15), sticky="w")
+        
+        self.structural_var = ctk.BooleanVar(value=False)
+        self.structural_cb = ctk.CTkCheckBox(
+            compliance_settings_frame,
+            text="Structural",
+            variable=self.structural_var,
+            font=ctk.CTkFont(family=PRIMARY_FONT, size=12, weight="normal")
+        )
+        self.structural_cb.grid(row=2, column=1, padx=15, pady=(0, 15), sticky="w")
+        
+        # PDF upload option
+        pdf_label = ctk.CTkLabel(
+            compliance_settings_frame,
+            text="Load Rules from PDF:",
+            font=ctk.CTkFont(family=PRIMARY_FONT, size=13, weight="normal")
+        )
+        pdf_label.grid(row=1, column=0, padx=15, pady=(0, 15), sticky="w")
+        
+        self.pdf_path_var = ctk.StringVar(value="")
+        self.pdf_entry = ctk.CTkEntry(
+            compliance_settings_frame,
+            textvariable=self.pdf_path_var,
+            placeholder_text="Path to building code PDF (optional)",
+            font=ctk.CTkFont(family=PRIMARY_FONT, size=12, weight="normal"),
+            height=35
+        )
+        self.pdf_entry.grid(row=2, column=0, padx=15, pady=(0, 15), sticky="ew")
+        
+        # Compliance action buttons
+        compliance_btn_frame = ctk.CTkFrame(compliance_frame, corner_radius=10)
+        compliance_btn_frame.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
+        compliance_btn_frame.grid_columnconfigure((0, 1), weight=1)
+        
+        self.compliance_btn = ctk.CTkButton(
+            compliance_btn_frame,
+            text="🔍 Check Compliance",
+            command=self.check_compliance,
+            state="disabled",
+            font=ctk.CTkFont(family=PRIMARY_FONT, size=14, weight="normal"),
+            height=45,
+            corner_radius=8,
+            fg_color="#9b59b6",
+            hover_color="#8e44ad"
+        )
+        self.compliance_btn.grid(row=0, column=0, padx=15, pady=15, sticky="ew")
+        
+        self.load_pdf_btn = ctk.CTkButton(
+            compliance_btn_frame,
+            text="📄 Load PDF Rules",
+            command=self.load_pdf_rules,
+            state="disabled",
+            font=ctk.CTkFont(family=PRIMARY_FONT, size=14, weight="normal"),
+            height=45,
+            corner_radius=8,
+            fg_color="#3498db",
+            hover_color="#2980b9"
+        )
+        self.load_pdf_btn.grid(row=0, column=1, padx=15, pady=15, sticky="ew")
+        
+        # Compliance progress bar
+        self.compliance_progress = ctk.CTkProgressBar(
+            compliance_btn_frame,
+            mode="indeterminate",
+            height=20,
+            corner_radius=10
+        )
+        self.compliance_progress.grid(row=1, column=0, columnspan=2, padx=15, pady=(0, 15), sticky="ew")
+        self.compliance_progress.set(0)
+        
         # Welcome message
         self.log_message("🚀 Welcome to AutoCAD Construction Toolkit")
-        self.log_message("💡 Connect to AutoCAD to start automatic dimensioning")
-        self.log_message("📋 Features: Smart line detection, configurable layers, professional dimensions")
+        self.log_message("💡 Connect to AutoCAD to start automatic dimensioning and compliance checking")
+        self.log_message("📋 Features: Smart dimensioning, AI compliance checking, building code validation")
         
     def connect_autocad(self):
         """Connect to AutoCAD."""
@@ -255,11 +370,15 @@ class MainWindow:
                 self.status_label.configure(text=f"Connected to {self.connection.doc.Name}")
                 self.status_indicator.configure(text_color="green")
                 self.dimension_service = DimensionService(self.connection)
+                self.compliance_service = ComplianceService(self.connection)
                 self.dimension_btn.configure(state="normal")
                 self.clear_btn.configure(state="normal")
+                self.compliance_btn.configure(state="normal")
+                self.load_pdf_btn.configure(state="normal")
                 self.connect_btn.configure(text="Reconnect")
                 self.log_message("✅ Connected to AutoCAD successfully!")
                 self.log_message(f"📄 Drawing: {self.connection.doc.Name}")
+                self.log_message(f"🏛️ Compliance service initialized with {len(self.compliance_service.rules)} rules")
             else:
                 self.log_message("❌ Failed to connect to AutoCAD")
                 messagebox.showerror("Connection Error", "Failed to connect to AutoCAD.\n\nMake sure AutoCAD is running with a drawing open.")
@@ -330,6 +449,113 @@ class MainWindow:
             except Exception as e:
                 self.log_message(f"❌ Error clearing dimensions: {e}")
                 messagebox.showerror("Error", f"Error clearing dimensions:\n\n{e}")
+                
+    def check_compliance(self):
+        """Check building code compliance."""
+        if not self.compliance_service:
+            messagebox.showerror("Error", "Not connected to AutoCAD")
+            return
+            
+        # Get selected categories
+        categories = []
+        if self.fire_safety_var.get():
+            categories.append(RuleCategory.FIRE_SAFETY)
+        if self.accessibility_var.get():
+            categories.append(RuleCategory.ACCESSIBILITY)
+        if self.structural_var.get():
+            categories.append(RuleCategory.STRUCTURAL)
+            
+        if not categories:
+            messagebox.showwarning("Warning", "Please select at least one compliance category to check.")
+            return
+            
+        # Start compliance checking in a separate thread
+        threading.Thread(target=self._compliance_worker, args=(categories,), daemon=True).start()
+        
+    def _compliance_worker(self, categories):
+        """Worker thread for compliance checking."""
+        try:
+            self.root.after(0, self._start_compliance_progress)
+            
+            self.root.after(0, self.log_message, "🔍 Starting compliance checking...")
+            self.root.after(0, self.log_message, f"📋 Checking categories: {', '.join([c.value for c in categories])}")
+            
+            violations = self.compliance_service.check_compliance(categories)
+            
+            self.root.after(0, self.log_message, f"🏛️ Compliance check completed!")
+            self.root.after(0, self.log_message, f"⚠️ Found {len(violations)} violations")
+            
+            # Generate detailed report
+            if violations:
+                for violation in violations[:5]:  # Show first 5 violations
+                    severity_emoji = "🔴" if violation.severity.value == "high" else "🟡" if violation.severity.value == "medium" else "🟢"
+                    self.root.after(0, self.log_message, f"{severity_emoji} {violation.rule_title}: {violation.description}")
+                    
+                if len(violations) > 5:
+                    self.root.after(0, self.log_message, f"... and {len(violations) - 5} more violations")
+                    
+                # Generate summary report
+                report = self.compliance_service.generate_compliance_report(violations)
+                self.root.after(0, self.log_message, f"📊 Summary: {report['summary']['high_severity']} high, {report['summary']['medium_severity']} medium, {report['summary']['low_severity']} low severity")
+                
+            else:
+                self.root.after(0, self.log_message, "✅ No compliance violations found!")
+                
+        except Exception as e:
+            error_msg = f"❌ Error during compliance checking: {e}"
+            self.root.after(0, self.log_message, error_msg)
+            self.root.after(0, messagebox.showerror, "Compliance Check Error", str(e))
+        finally:
+            self.root.after(0, self._stop_compliance_progress)
+            
+    def load_pdf_rules(self):
+        """Load compliance rules from PDF."""
+        if not self.compliance_service:
+            messagebox.showerror("Error", "Not connected to AutoCAD")
+            return
+            
+        pdf_path = self.pdf_path_var.get().strip()
+        if not pdf_path:
+            messagebox.showwarning("Warning", "Please enter the path to a building code PDF file.")
+            return
+            
+        # Start PDF loading in a separate thread
+        threading.Thread(target=self._pdf_worker, args=(pdf_path,), daemon=True).start()
+        
+    def _pdf_worker(self, pdf_path):
+        """Worker thread for PDF rule extraction."""
+        try:
+            self.root.after(0, self._start_compliance_progress)
+            
+            self.root.after(0, self.log_message, f"📄 Loading rules from PDF: {pdf_path}")
+            
+            rules_count = self.compliance_service.load_rules_from_pdf(pdf_path)
+            
+            if rules_count > 0:
+                self.root.after(0, self.log_message, f"✅ Successfully extracted {rules_count} rules from PDF")
+                self.root.after(0, self.log_message, f"📋 Total rules available: {len(self.compliance_service.rules)}")
+            else:
+                self.root.after(0, self.log_message, "⚠️ No rules could be extracted from the PDF")
+                
+        except Exception as e:
+            error_msg = f"❌ Error loading PDF rules: {e}"
+            self.root.after(0, self.log_message, error_msg)
+            self.root.after(0, messagebox.showerror, "PDF Loading Error", str(e))
+        finally:
+            self.root.after(0, self._stop_compliance_progress)
+            
+    def _start_compliance_progress(self):
+        """Start compliance progress bar."""
+        self.compliance_progress.start()
+        self.compliance_btn.configure(state="disabled")
+        self.load_pdf_btn.configure(state="disabled")
+        
+    def _stop_compliance_progress(self):
+        """Stop compliance progress bar."""
+        self.compliance_progress.stop()
+        self.compliance_progress.set(0)
+        self.compliance_btn.configure(state="normal")
+        self.load_pdf_btn.configure(state="normal")
                 
     def _start_progress(self):
         """Start progress bar."""
