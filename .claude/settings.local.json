@@ -13,7 +13,14 @@
       "Bash(./venv/Scripts/python.exe -m src.main:*)",
       "Bash(git push:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(git add:*)",
+      "Bash(rm:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(./venv/Scripts/python.exe -c \"import pyautocad, tkinter, customtkinter; print(''All main dependencies imported successfully!'')\")",
+      "Bash(./venv/Scripts/python.exe:*)"
     ],
     "deny": []
   }

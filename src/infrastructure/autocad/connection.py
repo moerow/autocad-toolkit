@@ -37,6 +37,45 @@ class AutoCADConnection(IAutoCADConnection):
             logger.error(f"Failed to connect to AutoCAD: {e}")
             return False
 
+    def get_open_documents(self) -> list:
+        """Get list of all open documents."""
+        try:
+            if not self._app:
+                return []
+            
+            documents = []
+            for doc in self._app.Documents:
+                documents.append({
+                    'name': doc.Name,
+                    'path': doc.FullName if hasattr(doc, 'FullName') else '',
+                    'is_active': doc == self._app.ActiveDocument,
+                    'document': doc
+                })
+            return documents
+        except Exception as e:
+            logger.error(f"Error getting open documents: {e}")
+            return []
+
+    def switch_to_document(self, document_name: str) -> bool:
+        """Switch to a specific document by name."""
+        try:
+            if not self._app:
+                return False
+                
+            for doc in self._app.Documents:
+                if doc.Name == document_name:
+                    self._app.ActiveDocument = doc
+                    self._doc = doc
+                    self._model = doc.ModelSpace
+                    logger.info(f"Switched to document: {document_name}")
+                    return True
+                    
+            logger.warning(f"Document not found: {document_name}")
+            return False
+        except Exception as e:
+            logger.error(f"Error switching to document {document_name}: {e}")
+            return False
+
     def disconnect(self) -> None:
         """Disconnect from AutoCAD."""
         try:
@@ -71,3 +110,57 @@ class AutoCADConnection(IAutoCADConnection):
     @property
     def doc(self):
         return self._doc
+
+    def get_autocad_version(self) -> str:
+        """Get AutoCAD version information."""
+        try:
+            if self._app:
+                return self._app.Version
+            return "Unknown"
+        except:
+            return "Unknown"
+
+    def get_active_document(self):
+        """Get the active document."""
+        return self._doc
+
+    def create_new_document(self, template_path: str = None):
+        """Create a new document."""
+        try:
+            if self._app:
+                return self._app.Documents.Add(template_path)
+            return None
+        except:
+            return None
+
+    def open_document(self, file_path: str):
+        """Open an existing document."""
+        try:
+            if self._app:
+                return self._app.Documents.Open(file_path)
+            return None
+        except:
+            return None
+
+    def save_document(self, file_path: str = None) -> bool:
+        """Save the active document."""
+        try:
+            if self._doc:
+                if file_path:
+                    self._doc.SaveAs(file_path)
+                else:
+                    self._doc.Save()
+                return True
+            return False
+        except:
+            return False
+
+    def close_document(self, save_changes: bool = True) -> bool:
+        """Close the active document."""
+        try:
+            if self._doc:
+                self._doc.Close(save_changes)
+                return True
+            return False
+        except:
+            return False
