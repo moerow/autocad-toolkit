@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mv:*)",
+      "Bash(python:*)",
+      "Bash(sudo apt:*)",
+      "Bash(sudo apt install:*)",
+      "Bash(./venv/Scripts/activate)",
+      "Bash(pip install:*)",
+      "Bash(./venv/Scripts/python.exe -m pip install:*)",
+      "Bash(./venv/Scripts/python.exe -c \"import pyautocad, tkinter, customtkinter; print(''All main dependencies imported successfully!'')\")",
+      "Bash(./venv/Scripts/python.exe test_installation.py:*)",
+      "Bash(./venv/Scripts/python.exe -m src.main:*)"
+    ],
+    "deny": []
+  }
+}

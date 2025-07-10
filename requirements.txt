@@ -1,0 +1,30 @@
+# Core dependencies
+pyautocad>=0.2.0
+pywin32>=305
+
+# Modern GUI
+customtkinter>=5.2.0
+Pillow>=10.0.0
+
+# CLI
+click>=8.0.0
+
+# PDF processing
+PyPDF2>=3.0.0
+
+# AI integration (optional)
+openai>=0.27.0
+
+# Data handling
+pandas>=1.5.0
+openpyxl>=3.1.0
+
+# Utilities
+python-dotenv>=1.0.0
+
+# Development dependencies (optional)
+pytest>=7.0.0
+pytest-cov>=4.0.0
+black>=22.0.0
+flake8>=5.0.0
+mypy>=1.0.0
