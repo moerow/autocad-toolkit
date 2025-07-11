@@ -23,7 +23,11 @@
       "Bash(./venv/Scripts/python.exe:*)",
       "Bash(git commit:*)",
       "Bash(git config:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(venv/Scripts/pip.exe install:*)",
+      "Bash(venv/Scripts/python.exe:*)",
+      "Bash(venv/Scripts/pip.exe list:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": []
   }

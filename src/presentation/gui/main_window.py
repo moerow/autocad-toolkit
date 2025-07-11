@@ -4,6 +4,9 @@ from tkinter import messagebox
 import logging
 import threading
 from typing import Optional
+import os
+import sys
+import tkinter as tk
 
 from src.infrastructure.autocad.connection import AutoCADConnection
 from src.application.services.dimension_service import DimensionService
@@ -60,6 +63,9 @@ class MainWindow:
         self.root.title("AutoCAD Construction Toolkit")
         self.root.geometry("1200x800")
         self.root.minsize(1000, 700)
+        
+        # Set custom icon
+        self.setup_custom_icon()
         
         # Main container with grid layout
         main_container = ctk.CTkFrame(self.root, fg_color=COLORS['background'])
@@ -320,46 +326,147 @@ class MainWindow:
         # Configuration fields
         fields_frame = ctk.CTkFrame(config_frame, fg_color="transparent")
         fields_frame.pack(fill="x", padx=20, pady=(0, 20))
+        fields_frame.grid_columnconfigure(0, weight=1)
+        fields_frame.grid_columnconfigure(1, weight=1)
         
-        # Layer filter
-        layer_label = ctk.CTkLabel(
-            fields_frame,
-            text="Layer Filter (optional):",
+        # Layer filtering section
+        layer_section = ctk.CTkFrame(fields_frame, fg_color="transparent")
+        layer_section.grid(row=0, column=0, sticky="ew", padx=(0, 10), pady=(0, 15))
+        
+        layer_title = ctk.CTkLabel(
+            layer_section,
+            text="Layer Filtering:",
+            font=ctk.CTkFont(FONTS['body'][0], FONTS['body'][1], "bold"),
+            text_color=COLORS['text']
+        )
+        layer_title.pack(anchor="w", pady=(0, 5))
+        
+        # Include specific layer
+        include_label = ctk.CTkLabel(
+            layer_section,
+            text="Include only layer (e.g., 'concrete'):",
             font=ctk.CTkFont(*FONTS['body']),
             text_color=COLORS['text']
         )
-        layer_label.grid(row=0, column=0, sticky="w", pady=(0, 5))
+        include_label.pack(anchor="w", pady=(0, 2))
         
         self.layer_var = ctk.StringVar(value="")
         self.layer_entry = ctk.CTkEntry(
-            fields_frame,
+            layer_section,
             textvariable=self.layer_var,
-            placeholder_text="e.g., WALL (leave empty for all)",
+            placeholder_text="Leave empty for all layers",
             font=ctk.CTkFont(*FONTS['body']),
             height=36,
-            width=300
+            width=280
         )
-        self.layer_entry.grid(row=1, column=0, sticky="w", pady=(0, 15))
+        self.layer_entry.pack(anchor="w", pady=(0, 10))
+        
+        # Exclude layers
+        exclude_label = ctk.CTkLabel(
+            layer_section,
+            text="Exclude layers (comma-separated):",
+            font=ctk.CTkFont(*FONTS['body']),
+            text_color=COLORS['text']
+        )
+        exclude_label.pack(anchor="w", pady=(0, 2))
+        
+        self.exclude_var = ctk.StringVar(value="")
+        self.exclude_entry = ctk.CTkEntry(
+            layer_section,
+            textvariable=self.exclude_var,
+            placeholder_text="e.g., '00 furniture, text, hatching'",
+            font=ctk.CTkFont(*FONTS['body']),
+            height=36,
+            width=280
+        )
+        self.exclude_entry.pack(anchor="w", pady=(0, 10))
+        
+        # Get layers button
+        self.get_layers_btn = ctk.CTkButton(
+            layer_section,
+            text="📋 Get Available Layers",
+            command=self.show_available_layers,
+            font=ctk.CTkFont(*FONTS['caption']),
+            height=32,
+            width=180,
+            corner_radius=4
+        )
+        self.get_layers_btn.pack(anchor="w")
+        
+        # Dimensioning mode section
+        mode_section = ctk.CTkFrame(fields_frame, fg_color="transparent")
+        mode_section.grid(row=0, column=1, sticky="ew", padx=(10, 0), pady=(0, 15))
+        
+        mode_title = ctk.CTkLabel(
+            mode_section,
+            text="Dimensioning Mode:",
+            font=ctk.CTkFont(FONTS['body'][0], FONTS['body'][1], "bold"),
+            text_color=COLORS['text']
+        )
+        mode_title.pack(anchor="w", pady=(0, 5))
+        
+        # Dimensioning mode selection
+        self.mode_var = ctk.StringVar(value="traditional")
+        
+        traditional_radio = ctk.CTkRadioButton(
+            mode_section,
+            text="Traditional Dimensioning",
+            variable=self.mode_var,
+            value="traditional",
+            font=ctk.CTkFont(*FONTS['body']),
+            text_color=COLORS['text']
+        )
+        traditional_radio.pack(anchor="w", pady=(0, 5))
+        
+        ai_radio = ctk.CTkRadioButton(
+            mode_section,
+            text="AI-Powered Dimensioning",
+            variable=self.mode_var,
+            value="ai",
+            font=ctk.CTkFont(*FONTS['body']),
+            text_color=COLORS['text']
+        )
+        ai_radio.pack(anchor="w", pady=(0, 5))
+        
+        professional_radio = ctk.CTkRadioButton(
+            mode_section,
+            text="Professional 3-Layer System",
+            variable=self.mode_var,
+            value="professional",
+            font=ctk.CTkFont(*FONTS['body']),
+            text_color=COLORS['text']
+        )
+        professional_radio.pack(anchor="w", pady=(0, 10))
+        
+        # Professional mode explanation
+        prof_info = ctk.CTkLabel(
+            mode_section,
+            text="3-Layer System:\n• Outer: Total length\n• Middle: Projections\n• Inner: Openings (1cm gap)",
+            font=ctk.CTkFont(*FONTS['caption']),
+            text_color=COLORS['text_secondary'],
+            justify="left"
+        )
+        prof_info.pack(anchor="w", pady=(0, 10))
         
         # Offset distance
         offset_label = ctk.CTkLabel(
-            fields_frame,
+            mode_section,
             text="Distance from lines (mm):",
             font=ctk.CTkFont(*FONTS['body']),
             text_color=COLORS['text']
         )
-        offset_label.grid(row=2, column=0, sticky="w", pady=(0, 5))
+        offset_label.pack(anchor="w", pady=(0, 2))
         
         self.offset_var = ctk.StringVar(value="0.2")
         self.offset_entry = ctk.CTkEntry(
-            fields_frame,
+            mode_section,
             textvariable=self.offset_var,
             placeholder_text="0.2",
             font=ctk.CTkFont(*FONTS['body']),
             height=36,
             width=150
         )
-        self.offset_entry.grid(row=3, column=0, sticky="w")
+        self.offset_entry.pack(anchor="w")
         
         # Action buttons with loading indicators
         action_frame = ctk.CTkFrame(dimensions_frame, fg_color=COLORS['surface'], corner_radius=8)
@@ -857,20 +964,56 @@ class MainWindow:
         self.dimension_btn.configure(state="disabled")
         
         try:
+            # Get layer filtering parameters
             layer_filter = self.layer_var.get().strip() if self.layer_var.get().strip() else None
+            excluded_layers = []
+            if self.exclude_var.get().strip():
+                excluded_layers = [layer.strip() for layer in self.exclude_var.get().split(',')]
+            
+            # Get dimensioning mode
+            mode = self.mode_var.get()
             
             self.log_message("Processing drawing entities...")
             
             if layer_filter:
-                self.log_message(f"Filtering by layer: {layer_filter}")
-            else:
+                self.log_message(f"Including only layer: {layer_filter}")
+            if excluded_layers:
+                self.log_message(f"Excluding layers: {', '.join(excluded_layers)}")
+            if not layer_filter and not excluded_layers:
                 self.log_message("Processing all layers")
-                
-            results = self.dimension_service.dimension_all_lines(layer_filter)
             
-            self.log_message("Dimensioning completed!")
-            self.log_message(f"Lines dimensioned: {results['lines']}")
-            self.log_message(f"Total dimensions: {results['total']}")
+            # Execute dimensioning based on selected mode
+            if mode == "ai":
+                self.log_message("Using AI-powered dimensioning...")
+                results = self.dimension_service.dimension_all_lines_ai(layer_filter)
+                
+                self.log_message("AI dimensioning completed!")
+                self.log_message(f"Total dimensions: {results['total']}")
+                if 'ai_breakdown' in results:
+                    breakdown = results['ai_breakdown']
+                    self.log_message(f"AI breakdown - Critical: {breakdown['critical']}, Important: {breakdown['important']}, Detail: {breakdown['detail']}")
+                    
+            elif mode == "professional":
+                self.log_message("Using professional 3-layer dimensioning system...")
+                results = self.dimension_service.dimension_professional_3_layer(layer_filter, excluded_layers)
+                
+                self.log_message("Professional dimensioning completed!")
+                self.log_message(f"Total dimensions: {results['total_dimensions']}")
+                self.log_message(f"Layer 1 (Total): {results['layer_1_total']}")
+                self.log_message(f"Layer 2 (Major): {results['layer_2_major']}")
+                self.log_message(f"Layer 3 (Detailed): {results['layer_3_detailed']}")
+                
+                # Show side breakdown
+                sides = results['sides_processed']
+                self.log_message(f"Sides processed - Bottom: {sides['bottom']}, Top: {sides['top']}, Left: {sides['left']}, Right: {sides['right']}")
+                
+            else:  # traditional
+                self.log_message("Using traditional dimensioning...")
+                results = self.dimension_service.dimension_all_lines(layer_filter)
+                
+                self.log_message("Traditional dimensioning completed!")
+                self.log_message(f"Lines dimensioned: {results['lines']}")
+                self.log_message(f"Total dimensions: {results['total']}")
             
             # Try to zoom to show all content (optional)
             try:
@@ -1095,6 +1238,180 @@ class MainWindow:
         """Clear the activity log."""
         self.results_text.delete("1.0", "end")
         self.log_message("=== Log Cleared ===")
+        
+    def show_available_layers(self):
+        """Show available layers in the drawing."""
+        if not self.connection or not self.connection.is_connected():
+            messagebox.showerror("Error", "Not connected to AutoCAD. Please connect first.")
+            return
+            
+        if not self.dimension_service:
+            messagebox.showerror("Error", "Dimension service not initialized. Please reconnect to AutoCAD.")
+            return
+            
+        try:
+            # Get available layers
+            layers = self.dimension_service.get_available_layers()
+            
+            if not layers:
+                messagebox.showinfo("Layers", "No layers found in the drawing.")
+                return
+            
+            # Get layer statistics
+            stats = self.dimension_service.get_layer_statistics()
+            
+            # Create popup window to display layers
+            layer_window = Toplevel(self.root)
+            layer_window.title("Available Layers")
+            layer_window.geometry("600x500")
+            layer_window.configure(bg=COLORS['background'])
+            
+            # Create main frame
+            main_frame = ctk.CTkFrame(layer_window, fg_color=COLORS['background'])
+            main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+            
+            # Title
+            title_label = ctk.CTkLabel(
+                main_frame,
+                text="Available Layers in Drawing",
+                font=ctk.CTkFont(FONTS['title'][0], FONTS['title'][1], "bold"),
+                text_color=COLORS['text']
+            )
+            title_label.pack(pady=(10, 20))
+            
+            # Scrollable frame for layers
+            scrollable_frame = ctk.CTkScrollableFrame(
+                main_frame,
+                width=550,
+                height=350,
+                fg_color=COLORS['surface']
+            )
+            scrollable_frame.pack(fill="both", expand=True, padx=10, pady=10)
+            
+            # Headers
+            header_frame = ctk.CTkFrame(scrollable_frame, fg_color="transparent")
+            header_frame.pack(fill="x", pady=(0, 10))
+            
+            ctk.CTkLabel(header_frame, text="Layer Name", font=ctk.CTkFont(*FONTS['body'], "bold")).pack(side="left", padx=(0, 20))
+            ctk.CTkLabel(header_frame, text="Lines", font=ctk.CTkFont(*FONTS['body'], "bold")).pack(side="left", padx=(0, 15))
+            ctk.CTkLabel(header_frame, text="Polylines", font=ctk.CTkFont(*FONTS['body'], "bold")).pack(side="left", padx=(0, 15))
+            ctk.CTkLabel(header_frame, text="Blocks", font=ctk.CTkFont(*FONTS['body'], "bold")).pack(side="left", padx=(0, 15))
+            ctk.CTkLabel(header_frame, text="Total", font=ctk.CTkFont(*FONTS['body'], "bold")).pack(side="left")
+            
+            # Layer list
+            for layer in sorted(layers):
+                layer_frame = ctk.CTkFrame(scrollable_frame, fg_color="transparent")
+                layer_frame.pack(fill="x", pady=2)
+                
+                # Layer name (clickable to copy)
+                layer_name_btn = ctk.CTkButton(
+                    layer_frame,
+                    text=layer,
+                    command=lambda l=layer: self.copy_layer_name(l),
+                    font=ctk.CTkFont(*FONTS['body']),
+                    fg_color="transparent",
+                    hover_color=COLORS['primary_light'],
+                    text_color=COLORS['text'],
+                    anchor="w",
+                    width=200
+                )
+                layer_name_btn.pack(side="left", padx=(0, 10))
+                
+                # Statistics
+                if layer in stats:
+                    stat = stats[layer]
+                    ctk.CTkLabel(layer_frame, text=str(stat['lines']), font=ctk.CTkFont(*FONTS['body'])).pack(side="left", padx=(0, 30))
+                    ctk.CTkLabel(layer_frame, text=str(stat['polylines']), font=ctk.CTkFont(*FONTS['body'])).pack(side="left", padx=(0, 30))
+                    ctk.CTkLabel(layer_frame, text=str(stat['blocks']), font=ctk.CTkFont(*FONTS['body'])).pack(side="left", padx=(0, 30))
+                    ctk.CTkLabel(layer_frame, text=str(stat['total']), font=ctk.CTkFont(*FONTS['body'])).pack(side="left")
+                else:
+                    ctk.CTkLabel(layer_frame, text="0", font=ctk.CTkFont(*FONTS['body'])).pack(side="left", padx=(0, 30))
+                    ctk.CTkLabel(layer_frame, text="0", font=ctk.CTkFont(*FONTS['body'])).pack(side="left", padx=(0, 30))
+                    ctk.CTkLabel(layer_frame, text="0", font=ctk.CTkFont(*FONTS['body'])).pack(side="left", padx=(0, 30))
+                    ctk.CTkLabel(layer_frame, text="0", font=ctk.CTkFont(*FONTS['body'])).pack(side="left")
+            
+            # Instructions
+            instructions = ctk.CTkLabel(
+                main_frame,
+                text="Click on a layer name to copy it to clipboard.\nYou can then paste it into the layer filter fields.",
+                font=ctk.CTkFont(*FONTS['caption']),
+                text_color=COLORS['text_secondary']
+            )
+            instructions.pack(pady=(10, 0))
+            
+            # Close button
+            close_btn = ctk.CTkButton(
+                main_frame,
+                text="Close",
+                command=layer_window.destroy,
+                font=ctk.CTkFont(*FONTS['button']),
+                width=100,
+                height=35
+            )
+            close_btn.pack(pady=(10, 10))
+            
+            # Center the window
+            layer_window.transient(self.root)
+            layer_window.grab_set()
+            
+            self.log_message(f"Found {len(layers)} layers in drawing")
+            
+        except Exception as e:
+            error_msg = f"Error getting layers: {e}"
+            self.log_message(error_msg)
+            messagebox.showerror("Error", error_msg)
+    
+    def copy_layer_name(self, layer_name):
+        """Copy layer name to clipboard."""
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(layer_name)
+            self.log_message(f"Copied layer name '{layer_name}' to clipboard")
+        except Exception as e:
+            self.log_message(f"Could not copy to clipboard: {e}")
+    
+    def setup_custom_icon(self):
+        """Set up the application icon using the better previous approach."""
+        try:
+            # Use the better previous logo approach with emoji in title
+            self.root.title("🏗️ AutoCAD Construction Toolkit")
+            
+            # Try to set taskbar icon on Windows using a different approach
+            if sys.platform == "win32":
+                try:
+                    import ctypes
+                    from ctypes import wintypes
+                    
+                    # Get the window handle
+                    hwnd = self.root.winfo_id()
+                    
+                    # Load a built-in Windows icon (construction/tools related)
+                    # Using shell32.dll icon #22 (folder tools) as fallback
+                    hicon = ctypes.windll.shell32.ExtractIconW(
+                        ctypes.windll.kernel32.GetModuleHandleW(None),
+                        "shell32.dll",
+                        22  # Tools/wrench icon
+                    )
+                    
+                    if hicon:
+                        # Set both small and large icons
+                        ctypes.windll.user32.SendMessageW(
+                            hwnd, 0x0080, 0, hicon  # WM_SETICON, ICON_SMALL
+                        )
+                        ctypes.windll.user32.SendMessageW(
+                            hwnd, 0x0080, 1, hicon  # WM_SETICON, ICON_LARGE
+                        )
+                        logger.info("Windows taskbar icon set successfully")
+                    
+                except Exception as e:
+                    logger.warning(f"Could not set Windows taskbar icon: {e}")
+                    
+            logger.info("Application icon setup completed")
+            
+        except Exception as e:
+            logger.warning(f"Could not set up custom icon: {e}")
+            # Fallback to plain title
+            self.root.title("AutoCAD Construction Toolkit")
         
     def run(self):
         """Run the application."""
