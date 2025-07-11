@@ -60,18 +60,31 @@ class AutoCADConnection(IAutoCADConnection):
         """Switch to a specific document by name."""
         try:
             if not self._app:
+                logger.error("No AutoCAD application connection")
                 return False
                 
+            # Initialize COM for this thread
+            pythoncom.CoInitialize()
+            
+            # Find the document
+            target_doc = None
             for doc in self._app.Documents:
                 if doc.Name == document_name:
-                    self._app.ActiveDocument = doc
-                    self._doc = doc
-                    self._model = doc.ModelSpace
-                    logger.info(f"Switched to document: {document_name}")
-                    return True
+                    target_doc = doc
+                    break
                     
-            logger.warning(f"Document not found: {document_name}")
-            return False
+            if not target_doc:
+                logger.warning(f"Document not found: {document_name}")
+                return False
+                
+            # Switch to the document
+            self._app.ActiveDocument = target_doc
+            self._doc = target_doc
+            self._model = target_doc.ModelSpace
+            
+            logger.info(f"Switched to document: {document_name}")
+            return True
+            
         except Exception as e:
             logger.error(f"Error switching to document {document_name}: {e}")
             return False
@@ -92,7 +105,8 @@ class AutoCADConnection(IAutoCADConnection):
     def is_connected(self) -> bool:
         """Check if connected to AutoCAD."""
         try:
-            if self._doc:
+            if self._acad and self._doc and self._model:
+                # Try to access document name to verify connection
                 _ = self._doc.Name
                 return True
         except:

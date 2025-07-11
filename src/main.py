@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.infrastructure.autocad.connection import AutoCADConnection
 from src.application.services.dimension_service import DimensionService
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def test_dimension_service():
