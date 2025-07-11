@@ -22,7 +22,8 @@
       "Bash(./venv/Scripts/python.exe -c \"import pyautocad, tkinter, customtkinter; print(''All main dependencies imported successfully!'')\")",
       "Bash(./venv/Scripts/python.exe:*)",
       "Bash(git commit:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

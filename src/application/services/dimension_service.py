@@ -1,4 +1,4 @@
-"""Dimension service implementation."""
+"""Dimension service implementation with AI integration."""
 import logging
 import math
 from typing import List, Dict, Any, Optional, Tuple
@@ -23,10 +23,13 @@ class DimensionService:
             'duplicate_tolerance': 0.1  # Tolerance for detecting duplicate dimensions
         }
         self.existing_dimensions = []  # Track placed dimensions to avoid duplicates
+        
+        # AI integration (lazy-loaded)
+        self._ai_service = None
 
     def dimension_all_lines(self, layer_filter: Optional[str] = None) -> Dict[str, int]:
-        """Add dimensions to all lines in the drawing."""
-        logger.info("Starting dimensioning process...")
+        """Add dimensions to all lines in the drawing (traditional method)."""
+        logger.info("Starting traditional dimensioning process...")
         
         # COM already initialized in main thread
         
@@ -83,6 +86,60 @@ class DimensionService:
             logger.error(f"Error dimensioning lines: {e}")
 
         return results
+    
+    def dimension_all_lines_ai(self, layer_filter: Optional[str] = None) -> Dict[str, int]:
+        """Add dimensions to all lines using AI intelligence."""
+        logger.info("Starting AI-powered dimensioning process...")
+        
+        # Initialize AI service if not loaded
+        if not self._ai_service:
+            try:
+                from src.infrastructure.ai.intelligent_dimensioning import IntelligentDimensionService
+                self._ai_service = IntelligentDimensionService(self.cad)
+                logger.info("AI dimensioning service initialized")
+            except Exception as e:
+                logger.warning(f"Failed to initialize AI service: {e}")
+                logger.info("Falling back to traditional dimensioning")
+                return self.dimension_all_lines(layer_filter)
+        
+        # Use AI to intelligently dimension the drawing
+        try:
+            ai_results = self._ai_service.intelligent_dimension_all(layer_filter)
+            
+            # Convert AI results to traditional format
+            results = {
+                'lines': ai_results.get('total_dimensions', 0),
+                'total': ai_results.get('total_dimensions', 0),
+                'ai_plan': ai_results.get('plan', {}),
+                'ai_breakdown': {
+                    'critical': ai_results.get('critical_dimensions', 0),
+                    'important': ai_results.get('important_dimensions', 0),
+                    'detail': ai_results.get('detail_dimensions', 0)
+                }
+            }
+            
+            logger.info(f"AI dimensioning completed: {results['total']} dimensions added")
+            logger.info(f"AI breakdown - Critical: {results['ai_breakdown']['critical']}, "
+                       f"Important: {results['ai_breakdown']['important']}, "
+                       f"Detail: {results['ai_breakdown']['detail']}")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"AI dimensioning failed: {e}")
+            logger.info("Falling back to traditional dimensioning")
+            return self.dimension_all_lines(layer_filter)
+    
+    def get_ai_service(self):
+        """Get the AI service instance (for external access)."""
+        if not self._ai_service:
+            try:
+                from src.infrastructure.ai.intelligent_dimensioning import IntelligentDimensionService
+                self._ai_service = IntelligentDimensionService(self.cad)
+            except Exception as e:
+                logger.error(f"Failed to initialize AI service: {e}")
+                return None
+        return self._ai_service
 
     def _add_dimension_to_line(self, line) -> bool:
         """Add dimension to a single line."""
